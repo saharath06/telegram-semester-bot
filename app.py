@@ -5,30 +5,35 @@ from telegram.ext import Updater, CommandHandler, MessageHandler, Filters
 TOKEN = "7451840667:AAFsqAuuzzdAjlBit9vHKCrPx64k9Ghz_8U"
 ADMIN_ID = 7623960185
 
-user_data = {}
-current_subject = {}
+users = {}
 
-subjects = [
-    "Vibration", "Math 3", "Electronic", "Electrotechnic",
-    "Energy", "Propability", "English", "Cinétique", "Informatique"
-]
+subjects_flow = {
+    "Math 3": ["exam", "td"],
+    "Electronic": ["exam", "td", "tp"],
+    "Electrotechnic": ["exam", "td", "tp"],
+    "Propability": ["exam", "td"],
+    "Vibration": ["exam", "td", "tp"],
+    "Energy": ["exam"],
+    "English": ["exam"],
+    "Cinétique": ["exam"],
+    "Informatique": ["tp"]
+}
 
 def start(update, context):
     uid = update.message.from_user.id
-    user_data[uid] = {}
-    current_subject[uid] = None
+    users[uid] = {"subject": None, "step": 0, "data": {}}
 
     keyboard = [
-        ["Vibration", "Math 3"],
+        ["Math 3", "Vibration"],
         ["Electronic", "Electrotechnic"],
-        ["Energy", "Propability"],
+        ["Propability", "Energy"],
         ["English", "Cinétique"],
         ["Informatique"],
         ["📊 احسب المعدل"]
     ]
 
     update.message.reply_text(
-        "👋 أهلاً\nاختر المادة وأدخل النقاط:",
+        "اختر المادة 👇",
         reply_markup=ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
     )
 
@@ -40,61 +45,62 @@ def select_subject(update, context):
         calculate(update, context)
         return
 
-    current_subject[uid] = text
-    update.message.reply_text(
-        "✏️ أدخل النقاط:\n"
-        "- Exam فقط: exam\n"
-        "- TD + Exam: TD Exam\n"
-        "- TP TD Exam: TP TD Exam"
-    )
+    users[uid]["subject"] = text
+    users[uid]["step"] = 0
+    users[uid]["data"][text] = {}
 
-def save_grades(update, context):
+    ask_next(update, uid)
+
+def ask_next(update, uid):
+    subject = users[uid]["subject"]
+    step = users[uid]["step"]
+    flow = subjects_flow[subject]
+
+    field = flow[step]
+    update.message.reply_text(f"✏️ أدخل {field.upper()}")
+
+def save_value(update, context):
     uid = update.message.from_user.id
-    sub = current_subject.get(uid)
-    if not sub:
+    if uid not in users or users[uid]["subject"] is None:
         return
 
-    values = list(map(float, update.message.text.split()))
-    d = {}
+    subject = users[uid]["subject"]
+    value = float(update.message.text)
 
-    if sub in ["Energy", "English", "Cinétique"]:
-        d["exam"] = values[0]
+    flow = subjects_flow[subject]
+    step = users[uid]["step"]
+    field = flow[step]
 
-    elif sub in ["Math 3", "Propability"]:
-        d["td"], d["exam"] = values
+    users[uid]["data"][subject][field] = value
+    users[uid]["step"] += 1
 
-    elif sub == "Informatique":
-        d["tp"] = values[0]
-
+    if users[uid]["step"] < len(flow):
+        ask_next(update, uid)
     else:
-        d["tp"], d["td"], d["exam"] = values
-
-    user_data[uid][sub] = d
-    update.message.reply_text("✅ تم الحفظ")
+        update.message.reply_text("✅ تم حفظ المادة")
+        users[uid]["subject"] = None
 
 def calculate(update, context):
     uid = update.message.from_user.id
-    data = user_data.get(uid, {})
+    d = users[uid]["data"]
 
-    def td_exam(td, ex): 
-        return 0.4 * td + 0.6 * ex
+    def td_exam(td, ex): return 0.4 * td + 0.6 * ex
 
-    total = 0
-    coef = 0
+    total, coef = 0, 0
 
-    total += td_exam(data["Math 3"]["td"], data["Math 3"]["exam"]) * 3; coef += 3
-    total += td_exam(data["Vibration"]["td"], data["Vibration"]["exam"]) * 2; coef += 2
-    total += td_exam(data["Electronic"]["td"], data["Electronic"]["exam"]) * 2; coef += 2
-    total += td_exam(data["Electrotechnic"]["td"], data["Electrotechnic"]["exam"]) * 2; coef += 2
-    total += td_exam(data["Propability"]["td"], data["Propability"]["exam"]) * 2; coef += 2
+    total += td_exam(d["Math 3"]["td"], d["Math 3"]["exam"]) * 3; coef += 3
+    total += td_exam(d["Vibration"]["td"], d["Vibration"]["exam"]) * 2; coef += 2
+    total += td_exam(d["Electronic"]["td"], d["Electronic"]["exam"]) * 2; coef += 2
+    total += td_exam(d["Electrotechnic"]["td"], d["Electrotechnic"]["exam"]) * 2; coef += 2
+    total += td_exam(d["Propability"]["td"], d["Propability"]["exam"]) * 2; coef += 2
 
-    total += data["Energy"]["exam"]; coef += 1
-    total += data["English"]["exam"]; coef += 1
-    total += data["Cinétique"]["exam"]; coef += 1
+    total += d["Energy"]["exam"]; coef += 1
+    total += d["English"]["exam"]; coef += 1
+    total += d["Cinétique"]["exam"]; coef += 1
 
-    total += data["Informatique"]["tp"]; coef += 1
-    total += data["Vibration"]["tp"]; coef += 1
-    total += (data["Electronic"]["tp"] + data["Electrotechnic"]["tp"]) / 2; coef += 1
+    total += d["Informatique"]["tp"]; coef += 1
+    total += d["Vibration"]["tp"]; coef += 1
+    total += (d["Electronic"]["tp"] + d["Electrotechnic"]["tp"]) / 2; coef += 1
 
     avg = total / coef
 
@@ -102,24 +108,17 @@ def calculate(update, context):
     name = f"{user.first_name or ''} {user.last_name or ''}".strip()
     username = f"@{user.username}" if user.username else "لا يوجد"
 
-    report = f"📩 نتيجة حساب سداسي\n\n👤 الاسم: {name}\n🔗 المستخدم: {username}\n\n"
-    for s in subjects:
-        report += f"- {s}: {data.get(s)}\n"
-    report += f"\n📊 المعدل العام = {avg:.2f}"
-
+    report = f"👤 الاسم: {name}\n🔗 المستخدم: {username}\n📊 المعدل = {avg:.2f}"
     context.bot.send_message(chat_id=ADMIN_ID, text=report)
-    update.message.reply_text(f"🎉 المعدل النهائي = {avg:.2f}\n📨 تم إرسال التفاصيل للإدارة")
 
-def main():
-    updater = Updater(TOKEN, use_context=True)
-    dp = updater.dispatcher
+    update.message.reply_text(f"🎉 المعدل النهائي = {avg:.2f}")
 
-    dp.add_handler(CommandHandler("start", start))
-    dp.add_handler(MessageHandler(Filters.regex("|".join(subjects + ["📊 احسب المعدل"])), select_subject))
-    dp.add_handler(MessageHandler(Filters.text & ~Filters.command, save_grades))
+updater = Updater(TOKEN, use_context=True)
+dp = updater.dispatcher
 
-    updater.start_polling()
-    updater.idle()
+dp.add_handler(CommandHandler("start", start))
+dp.add_handler(MessageHandler(Filters.regex("|".join(list(subjects_flow.keys()) + ["📊 احسب المعدل"])), select_subject))
+dp.add_handler(MessageHandler(Filters.text & ~Filters.command, save_value))
 
-if __name__ == "__main__":
-    main()
+updater.start_polling()
+updater.idle()
