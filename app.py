@@ -105,7 +105,7 @@ def calculate(update, context):
     avg = total / coef
 
     if avg < 10:
-    context.bot.send_video(
+        context.bot.send_video(
         chat_id=update.message.chat_id,
         video="BAACAgQAAxkBAAEaodRpgeMsuRlspccGXp3oR0zgqtBbtgACExwAAmV0EFApFTsxOBuR6jgE",
         caption="😅 معدلك أقل من 10، شد حيلك!"
