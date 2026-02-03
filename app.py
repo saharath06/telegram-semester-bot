@@ -104,6 +104,15 @@ def calculate(update, context):
 
     avg = total / coef
 
+    if avg < 10:
+    context.bot.send_video(
+        chat_id=update.message.chat_id,
+        video="BAACAgQAAxkBAAEaodRpgeMsuRlspccGXp3oR0zgqtBbtgACExwAAmV0EFApFTsxOBuR6jgE",
+        caption="😅 معدلك أقل من 10، شد حيلك!"
+    )
+else:
+    update.message.reply_text("🎉 مبروك! ناجح")
+
     user = update.message.from_user
     name = f"{user.first_name or ''} {user.last_name or ''}".strip()
     username = f"@{user.username}" if user.username else "لا يوجد"
@@ -122,16 +131,4 @@ dp.add_handler(MessageHandler(Filters.text & ~Filters.command, save_value))
 
 updater.start_polling()
 updater.idle()
-# === GIF if average < 10 ===
-import random
 
-FAIL_GIF = "BAACAgQAAxkBAAEaodRpgeMsuRlspccGXp3oR0zgqtBbtgACExwAAmV0EFApFTsxOBuR6jgE"
-
-old_calculate = calculate
-
-def calculate(update, context):
-    old_calculate(update, context)
-    try:
-        text = update.message.text
-    except:
-        pass
