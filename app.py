@@ -129,6 +129,6 @@ dp.add_handler(CommandHandler("start", start))
 dp.add_handler(MessageHandler(Filters.regex("|".join(list(subjects_flow.keys()) + ["📊 احسب المعدل"])), select_subject))
 dp.add_handler(MessageHandler(Filters.text & ~Filters.command, save_value))
 
+updater.bot.delete_webhook(drop_pending_updates=True)
 updater.start_polling()
 updater.idle()
-
