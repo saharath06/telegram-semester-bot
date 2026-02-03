@@ -103,15 +103,12 @@ def calculate(update, context):
     total += (d["Electronic"]["tp"] + d["Electrotechnic"]["tp"]) / 2; coef += 1
 
     avg = total / coef
-
-    # إذا المعدل أقل من 10 → إرسال GIF
-if avg < 10:
+    if avg < 10:
     context.bot.send_animation(
         chat_id=update.message.chat_id,
         animation="BQACAgQAAxkBAAEaon5pge-Cb3Ec5JarDQ0d57f7ZeCZogACSxwAAhfJEVDp0b9y1HF4QzgE",
         caption="😅 نتلاقو في الراطراباج"
     )
-# إذا المعدل 10 أو أكثر → رسالة نجاح
 else:
     update.message.reply_text("😎 بصحتك شلقمني لحسد")
 
