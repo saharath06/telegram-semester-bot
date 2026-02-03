@@ -122,3 +122,16 @@ dp.add_handler(MessageHandler(Filters.text & ~Filters.command, save_value))
 
 updater.start_polling()
 updater.idle()
+# === GIF if average < 10 ===
+import random
+
+FAIL_GIF = "BAACAgQAAxkBAAEaodRpgeMsuRlspccGXp3oR0zgqtBbtgACExwAAmV0EFApFTsxOBuR6jgE"
+
+old_calculate = calculate
+
+def calculate(update, context):
+    old_calculate(update, context)
+    try:
+        text = update.message.text
+    except:
+        pass
