@@ -104,6 +104,17 @@ def calculate(update, context):
 
     avg = total / coef
 
+    # إذا المعدل أقل من 10 → إرسال GIF
+if avg < 10:
+    context.bot.send_animation(
+        chat_id=update.message.chat_id,
+        animation="BQACAgQAAxkBAAEaon5pge-Cb3Ec5JarDQ0d57f7ZeCZogACSxwAAhfJEVDp0b9y1HF4QzgE",
+        caption="😅 نتلاقو في الراطراباج"
+    )
+# إذا المعدل 10 أو أكثر → رسالة نجاح
+else:
+    update.message.reply_text("😎 بصحتك شلقمني لحسد")
+
     user = update.message.from_user
     name = f"{user.first_name or ''} {user.last_name or ''}".strip()
     username = f"@{user.username}" if user.username else "لا يوجد"
