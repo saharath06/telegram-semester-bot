@@ -104,15 +104,6 @@ def calculate(update, context):
 
     avg = total / coef
 
-    if avg < 10:
-        context.bot.send_video(
-        chat_id=update.message.chat_id,
-        video="BAACAgQAAxkBAAEaodRpgeMsuRlspccGXp3oR0zgqtBbtgACExwAAmV0EFApFTsxOBuR6jgE",
-        caption="😅 معدلك أقل من 10، شد حيلك!"
-    )
-else:
-    update.message.reply_text("🎉 مبروك! ناجح")
-
     user = update.message.from_user
     name = f"{user.first_name or ''} {user.last_name or ''}".strip()
     username = f"@{user.username}" if user.username else "لا يوجد"
@@ -129,6 +120,5 @@ dp.add_handler(CommandHandler("start", start))
 dp.add_handler(MessageHandler(Filters.regex("|".join(list(subjects_flow.keys()) + ["📊 احسب المعدل"])), select_subject))
 dp.add_handler(MessageHandler(Filters.text & ~Filters.command, save_value))
 
-updater.bot.delete_webhook(drop_pending_updates=True)
 updater.start_polling()
 updater.idle()
