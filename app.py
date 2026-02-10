@@ -6,9 +6,8 @@ from telegram.ext import (
 TOKEN = "7451840667:AAFsqAuuzzdAjlBit9vHKCrPx64k9Ghz_8U"
 ADMIN_ID = 7623960185
 
-ASK = 0  # حالة واحدة فقط (ثابتة)
+ASK = 0  # حالة واحدة
 
-# ===== ترتيب الأسئلة =====
 QUESTIONS = [
     ("Vibration", "exam"),
     ("Vibration", "td"),
@@ -35,59 +34,41 @@ QUESTIONS = [
     ("English", "exam"),
 ]
 
-# ===== الكريدي =====
-CREDITS = {
-    "Math": 6,
-    "Vibration": 4,
-    "Electronic": 4,
-    "Electrotechnic": 4,
-    "Propability": 4,
-    "Informatique": 2,
-    "TP_Elec_Electro": 2,
-    "TP_Vibration": 1,
-    "Energy": 1,
-    "English": 1,
-    "Gene Electrice": 1,
-}
-
-# ===== المجموعات =====
-GROUPS = {
-    "G1": ["Gene Electrice", "Energy"],
-    "G2": ["Math", "Vibration", "Electronic", "Electrotechnic"],
-    "G3": ["Informatique", "TP_Vibration", "TP_Elec_Electro", "Propability"],
-    "G4": ["English"],
-}
-
 def start(update, context):
     context.user_data.clear()
     context.user_data["i"] = 0
     context.user_data["data"] = {}
+    context.user_data["locked"] = False  # قفل
 
     subject, part = QUESTIONS[0]
     update.message.reply_text(f"✏️ كم أخذت في {part.upper()} {subject}؟")
     return ASK
 
 def ask(update, context):
+    # ===== منع التكرار =====
+    if context.user_data.get("locked"):
+        return ASK
+    context.user_data["locked"] = True
+
     i = context.user_data["i"]
 
-    # تحقق من الرقم
     try:
         value = float(update.message.text)
     except:
+        context.user_data["locked"] = False
         update.message.reply_text("❌ أرسل رقم فقط")
         return ASK
 
     subject, part = QUESTIONS[i]
-
-    # حفظ القيمة
     context.user_data["data"].setdefault(subject, {})[part] = value
 
-    # الانتقال للسؤال التالي
-    context.user_data["i"] = i + 1
+    i += 1
+    context.user_data["i"] = i
 
-    # إذا مازال هناك أسئلة
-    if context.user_data["i"] < len(QUESTIONS):
-        next_subject, next_part = QUESTIONS[context.user_data["i"]]
+    # ===== السؤال التالي =====
+    if i < len(QUESTIONS):
+        next_subject, next_part = QUESTIONS[i]
+        context.user_data["locked"] = False
         update.message.reply_text(
             f"✏️ كم أخذت في {next_part.upper()} {next_subject}؟"
         )
@@ -113,7 +94,28 @@ def ask(update, context):
         "TP_Elec_Electro": (d["Electronic"]["tp"] + d["Electrotechnic"]["tp"]) / 2,
     }
 
-    # ===== المعدل العام =====
+    CREDITS = {
+        "Math": 6,
+        "Vibration": 4,
+        "Electronic": 4,
+        "Electrotechnic": 4,
+        "Propability": 4,
+        "Informatique": 2,
+        "TP_Elec_Electro": 2,
+        "TP_Vibration": 1,
+        "Energy": 1,
+        "English": 1,
+        "Gene Electrice": 1,
+    }
+
+    GROUPS = {
+        "G1": ["Gene Electrice", "Energy"],
+        "G2": ["Math", "Vibration", "Electronic", "Electrotechnic"],
+        "G3": ["Informatique", "TP_Vibration", "TP_Elec_Electro", "Propability"],
+        "G4": ["English"],
+    }
+
+    # ===== المعدل =====
     total, coef = 0, 0
     for m, c in CREDITS.items():
         total += grades[m] * c
@@ -123,17 +125,15 @@ def ask(update, context):
     # ===== معدل المجموعات =====
     group_avg = {}
     for g, mods in GROUPS.items():
-        vals = [grades[m] for m in mods if m in grades]
+        vals = [grades[m] for m in mods]
         group_avg[g] = sum(vals) / len(vals)
 
-    # ===== حساب الكريدي =====
+    # ===== الكريدي =====
     earned = {}
     for m, c in CREDITS.items():
-        # النظام العادي
         if grades[m] >= 10:
             earned[m] = c
         else:
-            # نظام المجموعات
             for g, mods in GROUPS.items():
                 if m in mods and group_avg[g] >= 10:
                     earned[m] = c
@@ -149,13 +149,12 @@ def ask(update, context):
         f"👤 الاسم: {full_name}\n"
         f"🔗 المستخدم: {username}\n"
         f"📊 المعدل العام: {avg:.2f}\n\n"
-        f"📚 المواد:\n"
     )
 
     for m, v in grades.items():
         report += f"- {m}: {v:.2f}\n"
 
-    report += "\n🎓 الكريدي المتحصل عليه:\n"
+    report += "\n🎓 الكريدي:\n"
     for m, c in earned.items():
         report += f"- {m}: {c}\n"
 
@@ -171,6 +170,7 @@ conv = ConversationHandler(
     entry_points=[CommandHandler("start", start)],
     states={ASK: [MessageHandler(Filters.text & ~Filters.command, ask)]},
     fallbacks=[CommandHandler("start", start)],
+    allow_reentry=True,
 )
 
 updater = Updater(TOKEN, use_context=True)
