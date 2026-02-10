@@ -1,115 +1,139 @@
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters
 
 TOKEN = "7451840667:AAFsqAuuzzdAjlBit9vHKCrPx64k9Ghz_8U"
+ADMIN_ID = 7623960185
 
-# ترتيب المواد والخطوات
+# تسلسل الأسئلة
 FLOW = [
-    ("Vibration", ["exam", "td", "tp"], 2),
-    ("Math 3", ["exam", "td"], 3),
-    ("Electronic", ["exam", "td", "tp"], 2),
-    ("Electrotechnic", ["exam", "td", "tp"], 2),
-    ("Propability", ["exam", "td"], 2),
-    ("Energy", ["exam"], 1),
-    ("English", ["exam"], 1),
-    ("Cinétique", ["exam"], 1),
-    ("Informatique", ["tp"], 1),
+    ("Vibration", ["exam", "td", "tp"]),
+    ("Math", ["exam", "td"]),
+    ("Electronic", ["exam", "td", "tp"]),
+    ("Electrotechnic", ["exam", "td", "tp"]),
+    ("Propability", ["exam", "td"]),
+    ("Informatique", ["tp"]),
+    ("Energy", ["exam"]),
+    ("Gene Electrice", ["exam"]),
+    ("English", ["exam"]),
 ]
+
+# الكريدي
+CREDITS = {
+    "Math": 6,
+    "Vibration": 4,
+    "Electronic": 4,
+    "Electrotechnic": 4,
+    "Propability": 4,
+    "Informatique": 2,
+    "TP_Elec_Electro": 2,
+    "TP_Vibration": 1,
+    "Energy": 1,
+    "English": 1,
+    "Gene Electrice": 1,
+}
+
+# المجموعات
+GROUPS = {
+    "G1": ["Gene Electrice", "Energy"],
+    "G2": ["Math", "Vibration", "Electronic", "Electrotechnic"],
+    "G3": ["Informatique", "TP_Vibration", "TP_Elec_Electro", "Propability"],
+    "G4": ["English"],
+}
 
 users = {}
 
 def start(update, context):
     uid = update.message.from_user.id
-    users[uid] = {
-        "subject_i": 0,
-        "step_i": 0,
-        "data": {}
-    }
-    subject, steps, _ = FLOW[0]
-    update.message.reply_text(f"✏️ ارسلي {steps[0].upper()} {subject}")
+    users[uid] = {"i": 0, "j": 0, "data": {}}
+    subj, steps = FLOW[0]
+    update.message.reply_text(f"✏️ كم أخذت في {steps[0].upper()} {subj}؟")
 
 def handle(update, context):
     uid = update.message.from_user.id
     if uid not in users:
-        update.message.reply_text("ارسلي /start أولًا")
+        update.message.reply_text("أرسل /start أولًا")
         return
 
     try:
-        value = float(update.message.text)
+        val = float(update.message.text)
     except:
-        update.message.reply_text("❌ ارسلي رقم فقط")
+        update.message.reply_text("❌ أرسل رقم فقط")
         return
 
-    state = users[uid]
-    subject, steps, coef = FLOW[state["subject_i"]]
-    step = steps[state["step_i"]]
+    st = users[uid]
+    subj, steps = FLOW[st["i"]]
+    step = steps[st["j"]]
 
-    state["data"].setdefault(subject, {})[step] = value
-    state["step_i"] += 1
+    st["data"].setdefault(subj, {})[step] = val
+    st["j"] += 1
 
-    # نفس المادة
-    if state["step_i"] < len(steps):
-        next_step = steps[state["step_i"]]
-        update.message.reply_text(f"✏️ ارسلي {next_step.upper()} {subject}")
+    if st["j"] < len(steps):
+        update.message.reply_text(f"✏️ كم أخذت في {steps[st['j']].upper()} {subj}؟")
         return
 
-    # مادة جديدة
-    state["subject_i"] += 1
-    state["step_i"] = 0
+    st["i"] += 1
+    st["j"] = 0
 
-    if state["subject_i"] < len(FLOW):
-        subject, steps, _ = FLOW[state["subject_i"]]
-        update.message.reply_text(f"✏️ ارسلي {steps[0].upper()} {subject}")
+    if st["i"] < len(FLOW):
+        ns, ns_steps = FLOW[st["i"]]
+        update.message.reply_text(f"✏️ كم أخذت في {ns_steps[0].upper()} {ns}؟")
         return
 
-    # الحساب النهائي
-    total, coef_sum = 0, 0
+    d = st["data"]
 
-    def td_exam(td, ex):
-        return 0.4 * td + 0.6 * ex
+    def td_exam(td, ex): return 0.4*td + 0.6*ex
 
-    d = state["data"]
+    grades = {}
+    grades["Vibration"] = td_exam(d["Vibration"]["td"], d["Vibration"]["exam"])
+    grades["Math"] = td_exam(d["Math"]["td"], d["Math"]["exam"])
+    grades["Electronic"] = td_exam(d["Electronic"]["td"], d["Electronic"]["exam"])
+    grades["Electrotechnic"] = td_exam(d["Electrotechnic"]["td"], d["Electrotechnic"]["exam"])
+    grades["Propability"] = td_exam(d["Propability"]["td"], d["Propability"]["exam"])
+    grades["Energy"] = d["Energy"]["exam"]
+    grades["English"] = d["English"]["exam"]
+    grades["Gene Electrice"] = d["Gene Electrice"]["exam"]
+    grades["Informatique"] = d["Informatique"]["tp"]
+    grades["TP_Vibration"] = d["Vibration"]["tp"]
+    grades["TP_Elec_Electro"] = (d["Electronic"]["tp"] + d["Electrotechnic"]["tp"]) / 2
 
-    total += td_exam(d["Vibration"]["td"], d["Vibration"]["exam"]) * 2; coef_sum += 2
-    total += td_exam(d["Math 3"]["td"], d["Math 3"]["exam"]) * 3; coef_sum += 3
-    total += td_exam(d["Electronic"]["td"], d["Electronic"]["exam"]) * 2; coef_sum += 2
-    total += td_exam(d["Electrotechnic"]["td"], d["Electrotechnic"]["exam"]) * 2; coef_sum += 2
-    total += td_exam(d["Propability"]["td"], d["Propability"]["exam"]) * 2; coef_sum += 2
+    total, coef = 0, 0
+    for k, v in grades.items():
+        if k in CREDITS:
+            total += v * CREDITS[k]
+            coef += CREDITS[k]
+    avg = total / coef
 
-    total += d["Energy"]["exam"]; coef_sum += 1
-    total += d["English"]["exam"]; coef_sum += 1
-    total += d["Cinétique"]["exam"]; coef_sum += 1
+    group_avg = {}
+    for g, mods in GROUPS.items():
+        s = [grades[m] for m in mods if m in grades]
+        group_avg[g] = sum(s)/len(s)
 
-    total += d["Informatique"]["tp"]; coef_sum += 1
-    total += d["Vibration"]["tp"]; coef_sum += 1
-    total += (d["Electronic"]["tp"] + d["Electrotechnic"]["tp"]) / 2; coef_sum += 1
+    earned = {}
+    for m, c in CREDITS.items():
+        if m in grades and grades[m] >= 10:
+            earned[m] = c
+        else:
+            for g, mods in GROUPS.items():
+                if m in mods and group_avg[g] >= 10:
+                    earned[m] = c
 
-    avg = total / coef_sum
+    user = update.message.from_user
+    header = f"👤 {user.first_name}\n📊 المعدل العام: {avg:.2f}\n\n"
+    body = "📚 التفاصيل:\n"
+    for m, v in grades.items():
+        body += f"- {m}: {v:.2f}\n"
+    body += "\n🎓 الكريدي المتحصل عليه:\n"
+    for m, c in earned.items():
+        body += f"- {m}: {c}\n"
+    body += f"\n✅ مجموع الكريدي: {sum(earned.values())}"
 
-    ADMIN_ID = 7623960185
+    update.message.reply_text(header + body)
+    context.bot.send_message(chat_id=ADMIN_ID, text=header + body)
 
-report = (
-    f"👤 الاسم: {update.message.from_user.first_name}\n"
-    f"🔗 اليوزر: @{update.message.from_user.username}\n"
-    f"📊 المعدل: {avg:.2f}\n"
-    f"🧾 التفاصيل:\n{state['data']}"
-)
-
-context.bot.send_message(chat_id=ADMIN_ID, text=report)
-
-    update.message.reply_text(f"📊 معدلك = {avg:.2f}")
-
-    if avg < 10:
-        update.message.reply_text("نتلاقو في الراطراباج")
-    else:
-        update.message.reply_text("😎 بصحتك شلقمني لحسد")
-
-    del users[uid]  # تنظيف الذاكرة
+    del users[uid]
 
 updater = Updater(TOKEN, use_context=True)
 dp = updater.dispatcher
-
 dp.add_handler(CommandHandler("start", start))
 dp.add_handler(MessageHandler(Filters.text & ~Filters.command, handle))
-
 updater.start_polling()
 updater.idle()
