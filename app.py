@@ -6,7 +6,8 @@ from telegram.ext import (
 TOKEN = "7451840667:AAFsqAuuzzdAjlBit9vHKCrPx64k9Ghz_8U"
 ADMIN_ID = 7623960185
 
-# ترتيب الأسئلة
+ASK = 0  # حالة واحدة فقط (مهم)
+
 QUESTIONS = [
     ("Vibration", "exam"),
     ("Vibration", "td"),
@@ -33,26 +34,27 @@ QUESTIONS = [
     ("English", "exam"),
 ]
 
-STEP = range(len(QUESTIONS))
-
 def start(update, context):
     context.user_data.clear()
+    context.user_data["i"] = 0
+    context.user_data["data"] = {}
+
     subject, part = QUESTIONS[0]
     update.message.reply_text(f"✏️ كم أخذت في {part.upper()} {subject}؟")
-    return 0
+    return ASK
 
 def ask(update, context):
-    state = context.user_data.setdefault("state", {})
     i = context.user_data.get("i", 0)
 
+    # التحقق من الرقم
     try:
         value = float(update.message.text)
     except:
         update.message.reply_text("❌ أرسل رقم فقط")
-        return i
+        return ASK
 
     subject, part = QUESTIONS[i]
-    state.setdefault(subject, {})[part] = value
+    context.user_data["data"].setdefault(subject, {})[part] = value
 
     i += 1
     context.user_data["i"] = i
@@ -60,10 +62,10 @@ def ask(update, context):
     if i < len(QUESTIONS):
         subject, part = QUESTIONS[i]
         update.message.reply_text(f"✏️ كم أخذت في {part.upper()} {subject}؟")
-        return i
+        return ASK
 
     # ===== الحساب =====
-    d = state
+    d = context.user_data["data"]
 
     def td_exam(td, ex):
         return 0.4 * td + 0.6 * ex
@@ -112,9 +114,12 @@ def ask(update, context):
 
     return ConversationHandler.END
 
+
 conv = ConversationHandler(
     entry_points=[CommandHandler("start", start)],
-    states={i: [MessageHandler(Filters.text & ~Filters.command, ask)] for i in STEP},
+    states={
+        ASK: [MessageHandler(Filters.text & ~Filters.command, ask)]
+    },
     fallbacks=[CommandHandler("start", start)],
 )
 
