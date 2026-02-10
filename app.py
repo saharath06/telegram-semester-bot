@@ -1,74 +1,69 @@
-from telegram.ext import Updater, CommandHandler, MessageHandler, Filters
+from telegram.ext import (
+    Updater, CommandHandler, MessageHandler,
+    Filters, ConversationHandler
+)
 
 TOKEN = "7451840667:AAFsqAuuzzdAjlBit9vHKCrPx64k9Ghz_8U"
 ADMIN_ID = 7623960185
 
-# المواد بالترتيب
-SUBJECTS = [
-    ("Vibration", ["exam", "td", "tp"]),
-    ("Math", ["exam", "td"]),
-    ("Electronic", ["exam", "td", "tp"]),
-    ("Electrotechnic", ["exam", "td", "tp"]),
-    ("Propability", ["exam", "td"]),
-    ("Informatique", ["tp"]),
-    ("Energy", ["exam"]),
-    ("Gene Electrice", ["exam"]),
-    ("English", ["exam"]),
+# ترتيب الأسئلة
+QUESTIONS = [
+    ("Vibration", "exam"),
+    ("Vibration", "td"),
+    ("Vibration", "tp"),
+
+    ("Math", "exam"),
+    ("Math", "td"),
+
+    ("Electronic", "exam"),
+    ("Electronic", "td"),
+    ("Electronic", "tp"),
+
+    ("Electrotechnic", "exam"),
+    ("Electrotechnic", "td"),
+    ("Electrotechnic", "tp"),
+
+    ("Propability", "exam"),
+    ("Propability", "td"),
+
+    ("Informatique", "tp"),
+
+    ("Energy", "exam"),
+    ("Gene Electrice", "exam"),
+    ("English", "exam"),
 ]
 
-users = {}
+STEP = range(len(QUESTIONS))
 
 def start(update, context):
-    uid = update.message.from_user.id
-    users[uid] = {
-        "subject_index": 0,
-        "step_index": 0,
-        "data": {}
-    }
+    context.user_data.clear()
+    subject, part = QUESTIONS[0]
+    update.message.reply_text(f"✏️ كم أخذت في {part.upper()} {subject}؟")
+    return 0
 
-    subject, steps = SUBJECTS[0]
-    update.message.reply_text(f"✏️ كم أخذت في {steps[0].upper()} {subject}؟")
+def ask(update, context):
+    state = context.user_data.setdefault("state", {})
+    i = context.user_data.get("i", 0)
 
-def handle(update, context):
-    uid = update.message.from_user.id
-
-    if uid not in users:
-        update.message.reply_text("أرسل /start أولًا")
-        return
-
-    # التحقق من الرقم
     try:
         value = float(update.message.text)
     except:
         update.message.reply_text("❌ أرسل رقم فقط")
-        return
+        return i
 
-    state = users[uid]
+    subject, part = QUESTIONS[i]
+    state.setdefault(subject, {})[part] = value
 
-    subject, steps = SUBJECTS[state["subject_index"]]
-    step = steps[state["step_index"]]
+    i += 1
+    context.user_data["i"] = i
 
-    # حفظ القيمة
-    state["data"].setdefault(subject, {})[step] = value
-    state["step_index"] += 1
-
-    # نفس المادة
-    if state["step_index"] < len(steps):
-        next_step = steps[state["step_index"]]
-        update.message.reply_text(f"✏️ كم أخذت في {next_step.upper()} {subject}؟")
-        return
-
-    # الانتقال لمادة جديدة
-    state["subject_index"] += 1
-    state["step_index"] = 0
-
-    if state["subject_index"] < len(SUBJECTS):
-        next_subject, next_steps = SUBJECTS[state["subject_index"]]
-        update.message.reply_text(f"✏️ كم أخذت في {next_steps[0].upper()} {next_subject}؟")
-        return
+    if i < len(QUESTIONS):
+        subject, part = QUESTIONS[i]
+        update.message.reply_text(f"✏️ كم أخذت في {part.upper()} {subject}؟")
+        return i
 
     # ===== الحساب =====
-    d = state["data"]
+    d = state
 
     def td_exam(td, ex):
         return 0.4 * td + 0.6 * ex
@@ -87,7 +82,6 @@ def handle(update, context):
         "TP_Elec_Electro": (d["Electronic"]["tp"] + d["Electrotechnic"]["tp"]) / 2,
     }
 
-    # معاملات
     CREDITS = {
         "Math": 6,
         "Vibration": 4,
@@ -109,7 +103,6 @@ def handle(update, context):
 
     avg = total / coef
 
-    # تقرير
     report = f"📊 المعدل العام: {avg:.2f}\n\n"
     for m, v in grades.items():
         report += f"- {m}: {v:.2f}\n"
@@ -117,11 +110,17 @@ def handle(update, context):
     update.message.reply_text(report)
     context.bot.send_message(chat_id=ADMIN_ID, text=report)
 
-    del users[uid]
+    return ConversationHandler.END
+
+conv = ConversationHandler(
+    entry_points=[CommandHandler("start", start)],
+    states={i: [MessageHandler(Filters.text & ~Filters.command, ask)] for i in STEP},
+    fallbacks=[CommandHandler("start", start)],
+)
 
 updater = Updater(TOKEN, use_context=True)
 dp = updater.dispatcher
-dp.add_handler(CommandHandler("start", start))
-dp.add_handler(MessageHandler(Filters.text & ~Filters.command, handle))
+dp.add_handler(conv)
+
 updater.start_polling()
 updater.idle()
