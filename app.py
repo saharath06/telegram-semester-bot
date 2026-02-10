@@ -6,9 +6,9 @@ from telegram.ext import (
 TOKEN = "7451840667:AAFsqAuuzzdAjlBit9vHKCrPx64k9Ghz_8U"
 ADMIN_ID = 7623960185
 
-ASK = 0  # حالة واحدة مستقرة
+ASK = 0  # حالة واحدة فقط (ثابتة)
 
-# ===== الأسئلة بالترتيب =====
+# ===== ترتيب الأسئلة =====
 QUESTIONS = [
     ("Vibration", "exam"),
     ("Vibration", "td"),
@@ -62,14 +62,15 @@ def start(update, context):
     context.user_data.clear()
     context.user_data["i"] = 0
     context.user_data["data"] = {}
+
     subject, part = QUESTIONS[0]
     update.message.reply_text(f"✏️ كم أخذت في {part.upper()} {subject}؟")
     return ASK
 
 def ask(update, context):
-    i = context.user_data.get("i", 0)
+    i = context.user_data["i"]
 
-    # تحقق من الإدخال
+    # تحقق من الرقم
     try:
         value = float(update.message.text)
     except:
@@ -77,18 +78,22 @@ def ask(update, context):
         return ASK
 
     subject, part = QUESTIONS[i]
+
+    # حفظ القيمة
     context.user_data["data"].setdefault(subject, {})[part] = value
 
-    i += 1
-    context.user_data["i"] = i
+    # الانتقال للسؤال التالي
+    context.user_data["i"] = i + 1
 
-    # اسأل التالي
-    if i < len(QUESTIONS):
-        subject, part = QUESTIONS[i]
-        update.message.reply_text(f"✏️ كم أخذت في {part.upper()} {subject}؟")
+    # إذا مازال هناك أسئلة
+    if context.user_data["i"] < len(QUESTIONS):
+        next_subject, next_part = QUESTIONS[context.user_data["i"]]
+        update.message.reply_text(
+            f"✏️ كم أخذت في {next_part.upper()} {next_subject}؟"
+        )
         return ASK
 
-    # ===== الحساب =====
+    # ================= الحساب =================
     d = context.user_data["data"]
 
     def td_exam(td, ex):
@@ -121,7 +126,7 @@ def ask(update, context):
         vals = [grades[m] for m in mods if m in grades]
         group_avg[g] = sum(vals) / len(vals)
 
-    # ===== حساب الكريدي (عادي + مجموعات) =====
+    # ===== حساب الكريدي =====
     earned = {}
     for m, c in CREDITS.items():
         # النظام العادي
@@ -146,6 +151,7 @@ def ask(update, context):
         f"📊 المعدل العام: {avg:.2f}\n\n"
         f"📚 المواد:\n"
     )
+
     for m, v in grades.items():
         report += f"- {m}: {v:.2f}\n"
 
@@ -159,6 +165,7 @@ def ask(update, context):
     context.bot.send_message(chat_id=ADMIN_ID, text=report)
 
     return ConversationHandler.END
+
 
 conv = ConversationHandler(
     entry_points=[CommandHandler("start", start)],
